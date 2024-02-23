@@ -79,7 +79,7 @@ house = let
     height_above_gauge = 4*u"ft" # the House() constructor could not input a float, so I had to round 4.3 down to 4 so that it would be an int type instead
     value_usd = 194_456
     # combine the row with the other information to create the House object
-    return House(
+    House(
         row;
         area=area,
         height_above_gauge=height_above_gauge,
@@ -259,4 +259,118 @@ df = DataFrame(
 ```{julia}
 # plot df Δh_ft vs df npv
 scatter(df.Δh_ft, df.npv, xlabel="Δh (ft)", ylabel="NPV (USD)", legend=false)
+```
+
+```{julia}
+surge_dist_2 = GeneralizedExtremeValue(4, 1.5, 0.1)
+action_dist = [0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5]
+sows = [SOW(rand(slr_scenarios), surge_dist_2, draw_discount_rate()) for _ in 1:500] # for 10 SOWs
+actions = [Action(rand(action_dist)*u"ft") for _ in 1:500] # these are all the same
+results = [run_sim(a, s, p) for (a, s) in zip(actions, sows)]
+```
+
+```{julia}
+df = DataFrame(
+    npv=results,
+    Δh_ft=[a.Δh_ft for a in actions],
+    slr_a=[s.slr.a for s in sows],
+    slr_b=[s.slr.b for s in sows],
+    slr_c=[s.slr.c for s in sows],
+    slr_tstar=[s.slr.tstar for s in sows],
+    slr_cstar=[s.slr.cstar for s in sows],
+    surge_μ=[s.surge_dist.μ for s in sows],
+    surge_σ=[s.surge_dist.σ for s in sows],
+    surge_ξ=[s.surge_dist.ξ for s in sows],
+    discount_rate=[s.discount_rate for s in sows],
+)
+```
+
+
+```{julia}
+# plot df Δh_ft vs df npv
+
+scat2 = scatter(df.Δh_ft, df.npv, xlabel="Δh (ft)", ylabel="NPV (USD)", legend=false)
+# plot the distribution surge_dist_2
+plot2 = plot(surge_dist_2; label="Surge Distribution", color=:red, xlims=(-5,25), ylims=(0,0.3))
+subplot2 = plot(scat2, plot2, layout=(1, 2))
+```
+
+```{julia}
+surge_dist_3 = GeneralizedExtremeValue(7, 1.5, 0.1)
+action_dist = [0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5]
+sows = [SOW(rand(slr_scenarios), surge_dist_3, draw_discount_rate()) for _ in 1:500] # for 10 SOWs
+actions = [Action(rand(action_dist)*u"ft") for _ in 1:500] # these are all the same
+results = [run_sim(a, s, p) for (a, s) in zip(actions, sows)]
+```
+
+```{julia}
+df = DataFrame(
+    npv=results,
+    Δh_ft=[a.Δh_ft for a in actions],
+    slr_a=[s.slr.a for s in sows],
+    slr_b=[s.slr.b for s in sows],
+    slr_c=[s.slr.c for s in sows],
+    slr_tstar=[s.slr.tstar for s in sows],
+    slr_cstar=[s.slr.cstar for s in sows],
+    surge_μ=[s.surge_dist.μ for s in sows],
+    surge_σ=[s.surge_dist.σ for s in sows],
+    surge_ξ=[s.surge_dist.ξ for s in sows],
+    discount_rate=[s.discount_rate for s in sows],
+)
+```
+
+
+```{julia}
+# plot df Δh_ft vs df npv
+
+scat3 = scatter(df.Δh_ft, df.npv, xlabel="Δh (ft)", ylabel="NPV (USD)", legend=false)
+# plot the distribution surge_dist_2
+plot3 = plot(surge_dist_3; label="Surge Distribution", color=:red, xlims=(-5,25), ylims=(0,0.3))
+subplot3 = plot(scat3, plot3, layout=(1, 2))
+```
+
+```{julia}
+surge_dist_4 = GeneralizedExtremeValue(15, 1.5, 0.1)
+action_dist = [0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5]
+sows = [SOW(rand(slr_scenarios), surge_dist_3, draw_discount_rate()) for _ in 1:500] # for 10 SOWs
+actions = [Action(rand(action_dist)*u"ft") for _ in 1:500] # these are all the same
+results = [run_sim(a, s, p) for (a, s) in zip(actions, sows)]
+```
+
+```{julia}
+df = DataFrame(
+    npv=results,
+    Δh_ft=[a.Δh_ft for a in actions],
+    slr_a=[s.slr.a for s in sows],
+    slr_b=[s.slr.b for s in sows],
+    slr_c=[s.slr.c for s in sows],
+    slr_tstar=[s.slr.tstar for s in sows],
+    slr_cstar=[s.slr.cstar for s in sows],
+    surge_μ=[s.surge_dist.μ for s in sows],
+    surge_σ=[s.surge_dist.σ for s in sows],
+    surge_ξ=[s.surge_dist.ξ for s in sows],
+    discount_rate=[s.discount_rate for s in sows],
+)
+```
+
+
+```{julia}
+# plot df Δh_ft vs df npv
+
+scat4 = scatter(df.Δh_ft, df.npv, xlabel="Δh (ft)", ylabel="NPV (USD)", legend=false)
+# plot the distribution surge_dist_2
+plot4 = plot(surge_dist_4; label="Surge Distribution", color=:red, xlims=(-5,25), ylims=(0,0.3))
+subplot4 = plot(scat4, plot4, layout=(1, 2))
+```
+
+
+
+```{julia}
+subplotend = plot(subplot2, subplot4, layout=(2,1))
+```
+
+```{julia}
+```
+
+```{julia}
 ```
