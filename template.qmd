@@ -204,7 +204,7 @@ res = run_sim(a, sow, p)
 ```{julia}
 restrack=[];
 itrack = [];
-for i = 1:1000
+for i = 1:100
     sow = SOW(
         rand(slr_scenarios),
         draw_surge_distribution(),
@@ -215,9 +215,48 @@ for i = 1:1000
     push!(itrack, i)
 end
 
-scatter(itrack, restrack)
+# find the 25th quantile of restrack
+q25 = quantile(restrack, 0.25)
+# find the 75th quantile of restrack
+q75 = quantile(restrack, 0.75)
+q50 = quantile(restrack, 0.50)
+# plot restrack and quantiles
+plot(itrack, restrack, label="Simulated Results", xlabel="Iteration", ylabel="Cost (USD)", legend=:bottomright)
+hline!([q25], label="25th Quantile", color=:red)
+hline!([q50], label="50th Quantile", color=:black)
+hline!([q75], label="75th Quantile", color=:red)
+annotate!(25, q50-100000, text("Mean = $q50", :left, 10, :black))
+plot!(title="Simulated Results")
+# shade in the vlaues of y between q25 and q75
+
 ```
 
 ```{julia}
+
+action_dist = [0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5]
+sows = [SOW(rand(slr_scenarios), draw_surge_distribution(), draw_discount_rate()) for _ in 1:500] # for 10 SOWs
+actions = [Action(rand(action_dist)*u"ft") for _ in 1:500] # these are all the same
+results = [run_sim(a, s, p) for (a, s) in zip(actions, sows)]
 ```
 
+```{julia}
+df = DataFrame(
+    npv=results,
+    Δh_ft=[a.Δh_ft for a in actions],
+    slr_a=[s.slr.a for s in sows],
+    slr_b=[s.slr.b for s in sows],
+    slr_c=[s.slr.c for s in sows],
+    slr_tstar=[s.slr.tstar for s in sows],
+    slr_cstar=[s.slr.cstar for s in sows],
+    surge_μ=[s.surge_dist.μ for s in sows],
+    surge_σ=[s.surge_dist.σ for s in sows],
+    surge_ξ=[s.surge_dist.ξ for s in sows],
+    discount_rate=[s.discount_rate for s in sows],
+)
+```
+
+
+```{julia}
+# plot df Δh_ft vs df npv
+scatter(df.Δh_ft, df.npv, xlabel="Δh (ft)", ylabel="NPV (USD)", legend=false)
+```
