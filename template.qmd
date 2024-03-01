@@ -345,7 +345,11 @@ Interestingly, we see individual parameters that are relatively similar to param
 
 As for the computing power, I would try to run more scenarios.  Given my personal conclusion that it is the combinations of parameters, not the parameters themselves, which determine the utility of a choice, it is essential to observe as many combinations as possible.  I was limited, due to my own computer, to only 500 combinations.  With uncertainties in many of the inputs, many runs are required.
 
-Finally, regarding the implications of these results for decision making, I think this lab is a great example of exploratory modeling.  
+Finally, regarding the implications of these results for decision making, I think this lab is a great example of exploratory modeling.   It is not completely deterministic in the sense that there is no right answer.  There are different correct answers dependent on the situation, but understanding these possibilities is useful and gives insight that allows us to make the best choice we can.
+
+# Other graphs
+
+I have included other exploratory plots and figures I made below in case they are of interest!
 
 ```{julia}
 # plot df Δh_ft vs df npv
@@ -410,7 +414,6 @@ df = DataFrame(
 )
 ```
 
-
 ```{julia}
 # plot df Δh_ft vs df npv
 
@@ -444,7 +447,6 @@ df = DataFrame(
 )
 ```
 
-
 ```{julia}
 # plot df Δh_ft vs df npv
 
@@ -454,14 +456,6 @@ plot4 = plot(surge_dist_4; label="Surge Distribution", color=:red, xlims=(-5,25)
 subplot4 = plot(scat4, plot4, layout=(1, 2))
 ```
 
-
-
 ```{julia}
 subplotend = plot(subplot2, subplot4, layout=(2,1))
-```
-
-```{julia}
-```
-
-```{julia}
 ```
