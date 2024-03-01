@@ -43,6 +43,8 @@ using HouseElevation
 
 # Build the House Object
 
+The code below helps us build an object to hold important parameters, including the house's description, occupancy, and source.  We also include the area of the house, the height above the gauge, and the value of the house.  We then use the House() constructor to build the house object.
+
 ```{julia}
 haz_fl_dept = CSV.read("data/haz_fl_dept.csv", DataFrame)
 ```
@@ -67,6 +69,9 @@ house = let
 end
 ```
 
+
+The code below creates the depth-damages function used to determine how much cost can be expected at a given flood depth.
+
 ```{julia}
 let
     depths = uconvert.(u"ft", (-7.0u"ft"):(1.0u"inch"):(30.0u"ft"))
@@ -84,6 +89,7 @@ let
 end
 ```
 
+The code below establishes the cost of raising a house to a given elevation.  This is important as it will help us determine the cost of raising the house to a given elevation.
 
 ```{julia}
 let
@@ -103,7 +109,6 @@ end
 ```
 
 # Read in SLR
-
 
 ```{julia}
 #| output: false
@@ -132,8 +137,9 @@ let
 end
 ```
 
-
 # Draw Samples from Storm Surge and Discount rate
+
+We can draw samples from the storm surge and discount rate distributions to get a sense of the range of values we might expect.
 
 ```{julia}
 function draw_surge_distribution()
@@ -151,13 +157,25 @@ For example,
 [draw_surge_distribution() for _ in 1:1000]
 ```
 
+The code below establishes a function that makes this random draw for us.  This will be called later as we run the different combinations.
 
 ```{julia}
 #| output: false
 function draw_discount_rate()
-    return rand(Normal(0.04, 0.02))
+    draw = rand(Normal(0.04, 0.02))
+    if draw < 0
+        return 0.001
+    else
+        return draw
+    end
 end
 ```
+
+# Run Simulations
+
+## One Simulation
+
+The code below demonstrates, for only one combination, how we can run the simultion on given SOW, model, and action.
 
 ```{julia}
 p = ModelParams(
@@ -176,6 +194,8 @@ a = Action(3.0u"ft")
 res = run_sim(a, sow, p)
 ```
 
+The code below shows a very early analysis of these results.  The simulation is run 100 times on different combinations, and the NPV is plotted.  The 25th, 50th, and 75th quantiles are also plotted.  This is a very preliminary analysis, but it is interesting to see the range of NPVs that we might expect.
+
 ```{julia}
 restrack=[];
 itrack = [];
@@ -190,9 +210,7 @@ for i = 1:100
     push!(itrack, i)
 end
 
-# find the 25th quantile of restrack
 q25 = quantile(restrack, 0.25)
-# find the 75th quantile of restrack
 q75 = quantile(restrack, 0.75)
 q50 = quantile(restrack, 0.50)
 # plot restrack and quantiles
@@ -206,12 +224,18 @@ plot!(title="Simulated Results")
 
 ```
 
+## Multiple Simulations
+
+Below, I create a vector of possible action choices (e.g. house elevations).  This allows me to randomly sample from the actions like I am randomly selecting from the other SOWs.
+
 ```{julia}
 action_dist = [0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5]
 sows = [SOW(rand(slr_scenarios), draw_surge_distribution(), draw_discount_rate()) for _ in 1:500] # for 10 SOWs
 actions = [Action(rand(action_dist)*u"ft") for _ in 1:500] # these are all the same
 results = [run_sim(a, s, p) for (a, s) in zip(actions, sows)]
 ```
+
+The code below creates a dataframe with the results of the simulation.  This will allow us to analyze the results in a more organized way.
 
 ```{julia}
 df = DataFrame(
@@ -228,6 +252,8 @@ df = DataFrame(
     discount_rate=[s.discount_rate for s in sows],
 )
 ```
+
+# Analysis
 
 Now that we have our dataframe with our different SOWs and action combinations, and their associated NPVs, we can analyze both what the best NPV scenarios are, and how the different variables impacted our results.
 
@@ -274,7 +300,7 @@ plotheight = scatter(x_values, heights; title = "Height from
 plotend = plot(plotheight, plotdist, plotdiscount, layout=(2,2))
 ```
 
-The results provided in these very preliminary graphs are interesting.  The height, though there is variation, seems concentrated around 5 to 6 within our top scenarios.  This seems, at first glance, logical as it represents a relatively high elevation but does not elevate enough to be incredibly expensive in terms of original construction.
+The results provided in these very preliminary graphs are interesting.  The height, though there is variation, seems concentrated around 5 within our top scenarios.  This seems, at first glance, logical as it represents a relatively high elevation but does not elevate enough to be incredibly expensive in terms of original construction.
 
 The discount rate has a large range from 0.0049 to 0.0807.  The plots below show the huge difference caused by the changes in discount rate.  Notice that, for the scenario in which the discount rate is 0.08, money is almost worthless by the year 2060 and would not be considered. 
 
@@ -291,7 +317,7 @@ It is clear, then, that discount rates have a huge impact on the NPV of the proj
 
 This is a very interesting phenomena, then, that the discount rate is so important in determining the "worth" or "reward" of our actions but the top scenarios have such a large range.
 
-The surge also shows an interesting behavior.  I have copied the surge plot here. There is a large range in the location parameter going from 3.02 to 5.6.  However, these storm surge values, though there is a range, are relatively low.  This is completely expected as lower flood levels mean less potential for damages.  It is interesting as two of the storm surges show a behavior in which they almost look like a spike.  This means that the storm surge is very likely to be at a certain level and unlikely to fall anywhere else.  In both cases, the expected and very likely storm surge is just below the house elevation, which would mean that the house would not be flooded but only the absolutely necessary construction was done.
+The surge also shows an interesting behavior.  I have copied the surge plot here. There is a large range in the location parameter going from 3.02 to 6.0.  However, these storm surge values, though there is a range, are relatively low.  This is completely expected as lower flood levels mean less potential for damages.  It is interesting as two of the storm surges show a behavior in which they almost look like a spike.  This means that the storm surge is very likely to be at a certain level and unlikely to fall anywhere else.  In both cases, the expected and very likely storm surge is just below the house elevation, which would mean that the house would not be flooded but only the absolutely necessary construction was done.
 
 ```{julia}
 plot()
@@ -302,15 +328,24 @@ end
 display(plotdist)
 ```
 
-Interestingly, if we look at the worst 10 results, we see they range from 13,680,000 to 2,387,000.  
+Note that, as our dataframe stores the variables which determine sea level rise, I did not plot those specifically.  However, it is clear that sea-level-rise is similarly important in determining these damages.
+
+In terms of where we get the best results, it is difficult to identify any singular nswer in that performance within these different categories is inter-dependent.  For example, if the height is just above a very concentrated storm surge distribution, we benefit from just raising the house to reap the benefits without paying more than we needed to.  Discount rates strongly impact whether we take action now or risk it later.  Sea-level rise is similarly important as it shifts our distributions upwards, producing more risk every year.
+
+For this reason, (in my opinion) to say where we get the best results, we would need to consider all of these factors together, an artifact of the complexity of these variables, their uncertainties, and their interdependencies.
+
+I would make a similar argument for the worst 10 results.  I have plotted a dataframe with the worst 10 below.  In this particular run, we see the NPV ranges from 13,680,000 to 2,387,000.  
 
 ```{julia}
 df = sort(df, :npv)
 worst10df = first(df,10)
 ```
 
+Interestingly, we see individual parameters that are relatively similar to parameters in our best scenarios.  The heights can range around 5, the location parameter seems to range from 3 to 7, and the discount rate showss great variation (though this might be slightly lower).  Clearly parameters in isolation cannot produce either a good or a bad scenario.  It is the specific combinations that determine whether we are rewarded for our actions.
 
+As for the computing power, I would try to run more scenarios.  Given my personal conclusion that it is the combinations of parameters, not the parameters themselves, which determine the utility of a choice, it is essential to observe as many combinations as possible.  I was limited, due to my own computer, to only 500 combinations.  With uncertainties in many of the inputs, many runs are required.
 
+Finally, regarding the implications of these results for decision making, I think this lab is a great example of exploratory modeling.  
 
 ```{julia}
 # plot df Δh_ft vs df npv
