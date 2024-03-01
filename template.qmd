@@ -6,9 +6,6 @@ date: 2024-02-16
 
 format: 
     html: default
-
-    # YOU DO NOT NEED BOTH PDF AND DOCX.
-    # COMMENT OR DELETE THE ONE YOU DON'T WANT TO USE.
     pdf:
         documentclass: article
         fontsize: 11pt
@@ -16,29 +13,12 @@ format:
             - margin=1in  
         number-sections: true
         code-line-numbers: true
-    #docx: 
-    #    toc: true
-    #    fig-format: png
-    #    number-sections: true
-    #    code-line-numbers: true
 
 date-format: "ddd., MMM. D"
 bibliography: references.bib
 ---
 
 # Setup
-
-## The usual
-
-As always:
-
-1. Clone the lab repository to your computer
-1. Open the lab repository in VS Code
-1. Open the Julia REPL and activate, then instantiate, the lab environment
-1. Make sure you can render: `quarto render template.qmd` in the terminal.
-    - If you run into issues, try running `] build IJulia` in the Julia REPL (`]` enters the package manager).
-    - If you still have issues, try opening up `blankfile.py`. That should trigger VS Code to give you the option to install the Python extension, which you should do. Then you should be able to open a menu in the bottom right of your screen to select which Python installation you want VS Code to use.
-
 
 ## Load packages
 
@@ -70,15 +50,14 @@ haz_fl_dept = CSV.read("data/haz_fl_dept.csv", DataFrame)
 ```{julia}
 #| output: false
 house = let
-    haz_fl_dept = CSV.read("data/haz_fl_dept.csv", DataFrame) # read in the file
+    haz_fl_dept = CSV.read("data/haz_fl_dept.csv", DataFrame) 
     desc = "two story, no basement, Structure"
     occ = "RES1"
     src = "USACE - Galveston"
-    row = @rsubset(haz_fl_dept, :Description == desc, :Occupancy == occ, :Source == src)[1, :] # select the row I want
+    row = @rsubset(haz_fl_dept, :Description == desc, :Occupancy == occ, :Source == src)[1, :] 
     area = 881u"ft^2"
     height_above_gauge = 4*u"ft" # the House() constructor could not input a float, so I had to round 4.3 down to 4 so that it would be an int type instead
     value_usd = 194_456
-    # combine the row with the other information to create the House object
     House(
         row;
         area=area,
@@ -86,8 +65,6 @@ house = let
         value_usd=value_usd,
     )
 end
-
-display(house)
 ```
 
 ```{julia}
@@ -157,8 +134,6 @@ end
 
 
 # Draw Samples from Storm Surge and Discount rate
-
-
 
 ```{julia}
 function draw_surge_distribution()
@@ -232,7 +207,6 @@ plot!(title="Simulated Results")
 ```
 
 ```{julia}
-
 action_dist = [0, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5]
 sows = [SOW(rand(slr_scenarios), draw_surge_distribution(), draw_discount_rate()) for _ in 1:500] # for 10 SOWs
 actions = [Action(rand(action_dist)*u"ft") for _ in 1:500] # these are all the same
@@ -254,6 +228,88 @@ df = DataFrame(
     discount_rate=[s.discount_rate for s in sows],
 )
 ```
+
+Now that we have our dataframe with our different SOWs and action combinations, and their associated NPVs, we can analyze both what the best NPV scenarios are, and how the different variables impacted our results.
+
+First, we can use the code below to sort our dataframe by NPV and find the best 10 scenarios.
+
+```{julia}
+df = sort(df, :npv)
+best10df = last(df,10)
+```
+
+Based on this sorted dataframe, we can see that, within our 500 combinations, the lowest NPV is -93,801.  The other top 10 scenarios are similar.  However, it is interesting to note that there is still sufficient variability in the other variables that produced the similar Top 10 scenarios.
+
+For example, the discount rate for these top 10 ranges between 0.0049 and 0.0807. The plots below show the how the different parameters vary between these 10 scenarios.
+
+```{julia}
+
+## PLOT THE STORM SURGE
+
+plot()
+for i = 1:10
+    surge_dist = GeneralizedExtremeValue(best10df.surge_μ[i], best10df.surge_σ[i], best10df.surge_ξ[i])
+    global plotdist = plot!(surge_dist; title = "Surge from Top 10", xlims=(2,7), ylims=(0,15))
+end
+display(plotdist)
+
+## PLOT THE DISCOUNT RATE
+
+plotdiscount = plot()
+discount_rates = best10df.discount_rate  
+x_values = [1,2,3,4,5,6,7,8,9,10]  
+plotdiscount = scatter(x_values, discount_rates; title = 
+    "Discount Rate from Top 10", xlabel="Scenario", ylabel="Discount Rate", leg=false, ylims=(0,0.15))
+
+## PLOT THE HEIGHT 
+
+plotheight = plot() 
+heights = best10df.Δh_ft
+x_values = [1,2,3,4,5,6,7,8,9,10]
+plotheight = scatter(x_values, heights; title = "Height from 
+    Top 10", xlabel="Scenario", ylabel="Height (ft)", leg=false, ylims=(0,15))
+
+## COMBINED Plots
+
+plotend = plot(plotheight, plotdist, plotdiscount, layout=(2,2))
+```
+
+The results provided in these very preliminary graphs are interesting.  The height, though there is variation, seems concentrated around 5 to 6 within our top scenarios.  This seems, at first glance, logical as it represents a relatively high elevation but does not elevate enough to be incredibly expensive in terms of original construction.
+
+The discount rate has a large range from 0.0049 to 0.0807.  The plots below show the huge difference caused by the changes in discount rate.  Notice that, for the scenario in which the discount rate is 0.08, money is almost worthless by the year 2060 and would not be considered. 
+
+```{julia}
+x = collect(2024:2083)  
+y1 = 1 ./ ((1 + 0.0049) .^ (x .- 2023))  
+y2 = 1 ./ ((1 + 0.0807) .^ (x .- 2023)) 
+plot(x, y1, label="Discount Rate = 0.0049", xlabel="Year", 
+    ylabel="Discounted Value", title="Discount Rate Impact", legend=:bottomright)
+plot!(x, y2, label="Discount Rate = 0.0807")
+```
+
+It is clear, then, that discount rates have a huge impact on the NPV of the project.  With a higher discount rate, we might only consider the near immediate future; hypothetically, if this were extreme, people might want to avoid raising their homes at all.  This allows them to not spend money in the near future, and they do not care about the risk of flood damages later because the money is not worth as much then.
+
+This is a very interesting phenomena, then, that the discount rate is so important in determining the "worth" or "reward" of our actions but the top scenarios have such a large range.
+
+The surge also shows an interesting behavior.  I have copied the surge plot here. There is a large range in the location parameter going from 3.02 to 5.6.  However, these storm surge values, though there is a range, are relatively low.  This is completely expected as lower flood levels mean less potential for damages.  It is interesting as two of the storm surges show a behavior in which they almost look like a spike.  This means that the storm surge is very likely to be at a certain level and unlikely to fall anywhere else.  In both cases, the expected and very likely storm surge is just below the house elevation, which would mean that the house would not be flooded but only the absolutely necessary construction was done.
+
+```{julia}
+plot()
+for i = 1:10
+    surge_dist = GeneralizedExtremeValue(best10df.surge_μ[i], best10df.surge_σ[i], best10df.surge_ξ[i])
+    global plotdist = plot!(surge_dist; title = "Surge from Top 10", xlims=(2,7), ylims=(0,15))
+end
+display(plotdist)
+```
+
+Interestingly, if we look at the worst 10 results, we see they range from 13,680,000 to 2,387,000.  
+
+```{julia}
+df = sort(df, :npv)
+worst10df = first(df,10)
+```
+
+
 
 
 ```{julia}
